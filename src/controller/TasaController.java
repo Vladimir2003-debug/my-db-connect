@@ -34,13 +34,13 @@ public class TasaController {
 
             while (rs.next()) {
                 Object[] fila = {
-                    rs.getInt("TasCod"),
-                    rs.getString("TasIden"),
-                    rs.getString("TasDes"),
-                    rs.getBigDecimal("TasTas"),
-                    rs.getString("TasPlaz"),
-                    rs.getInt("TasIniFecha"),
-                    rs.getInt("TasFinFecha")
+                        rs.getInt("TasCod"),
+                        rs.getString("TasIden"),
+                        rs.getString("TasDes"),
+                        rs.getFloat("TasTas"),          // ahora float
+                        rs.getString("TasPlaz"),
+                        rs.getDate("TasIniFecha"),      // fecha como java.sql.Date
+                        rs.getDate("TasFinFecha")
                 };
                 tablaPanel.modelo.addRow(fila);
             }
@@ -62,15 +62,46 @@ public class TasaController {
 
     private void agregarTasa() {
         try (Connection conn = ConexionJDBC.getConexion()) {
-            String sql = "INSERT INTO tasa (TasIden, TasDes, TasTas, TasPlaz, TasIniFecha, TasFinFecha) VALUES (?, ?, ?, ?, ?, ?)";
+            String sql = "INSERT INTO tasa (TasCod, TasIden, TasDes, TasTas, TasPlaz, TasIniFecha, TasFinFecha) "
+                       + "VALUES (?, ?, ?, ?, ?, ?, ?)";
             PreparedStatement ps = conn.prepareStatement(sql);
 
-            ps.setString(1, registroPanel.txtTasIden.getText().trim());
-            ps.setString(2, registroPanel.txtTasDes.getText().trim());
-            ps.setBigDecimal(3, new java.math.BigDecimal(registroPanel.txtTasTas.getText().trim()));
-            ps.setString(4, registroPanel.txtTasPlaz.getText().trim());
-            ps.setInt(5, Integer.parseInt(registroPanel.txtTasIniFecha.getText().trim()));
-            ps.setInt(6, Integer.parseInt(registroPanel.txtTasFinFecha.getText().trim()));
+            // 1) Obtener código de producto (por defecto 1 si no hay o inválido)
+            int codProducto = 1;
+            try {
+                String input = registroPanel.txtTasCod.getText().trim();
+                if (!input.isEmpty()) {
+                    codProducto = Integer.parseInt(input);
+                }
+            } catch (NumberFormatException ex) {
+                codProducto = 1;
+            }
+
+            // 2) Si no existe el producto en BD, fuerza al producto 1
+            String sqlCheck = "SELECT COUNT(*) FROM producto WHERE ProdCod = ?";
+            try (PreparedStatement chk = conn.prepareStatement(sqlCheck)) {
+                chk.setInt(1, codProducto);
+                ResultSet rs = chk.executeQuery();
+                if (rs.next() && rs.getInt(1) == 0) {
+                    codProducto = 1;
+                }
+            }
+
+            // 3) Setear parámetros
+            ps.setInt(1, codProducto);
+            ps.setString(2, registroPanel.txtTasIden.getText().trim());
+            ps.setString(3, registroPanel.txtTasDes.getText().trim());
+            ps.setFloat(4, Float.parseFloat(registroPanel.txtTasTas.getText().trim()));  // ahora float
+            ps.setString(5, registroPanel.txtTasPlaz.getText().trim());
+
+            java.util.Date ini = registroPanel.dateIni.getDate();
+            java.util.Date fin = registroPanel.dateFin.getDate();
+            if (ini == null || fin == null) {
+                JOptionPane.showMessageDialog(null, "Seleccione ambas fechas.");
+                return;
+            }
+            ps.setDate(6, new java.sql.Date(ini.getTime()));
+            ps.setDate(7, new java.sql.Date(fin.getTime()));
 
             ps.executeUpdate();
             JOptionPane.showMessageDialog(null, "Tasa insertada correctamente.");
@@ -79,7 +110,7 @@ public class TasaController {
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(null, "Error al insertar: " + e.getMessage());
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(null, "Error: campos numéricos inválidos.");
+            JOptionPane.showMessageDialog(null, "Error: tasa inválida.");
         }
     }
 
@@ -95,8 +126,10 @@ public class TasaController {
         registroPanel.txtTasDes.setText(tablaPanel.modelo.getValueAt(fila, 2).toString());
         registroPanel.txtTasTas.setText(tablaPanel.modelo.getValueAt(fila, 3).toString());
         registroPanel.txtTasPlaz.setText(tablaPanel.modelo.getValueAt(fila, 4).toString());
-        registroPanel.txtTasIniFecha.setText(tablaPanel.modelo.getValueAt(fila, 5).toString());
-        registroPanel.txtTasFinFecha.setText(tablaPanel.modelo.getValueAt(fila, 6).toString());
+
+        // Fechas
+        registroPanel.dateIni.setDate((Date) tablaPanel.modelo.getValueAt(fila, 5));
+        registroPanel.dateFin.setDate((Date) tablaPanel.modelo.getValueAt(fila, 6));
 
         flagAct = 1;
         modoOperacion = "modificar";
@@ -109,15 +142,23 @@ public class TasaController {
         }
 
         try (Connection conn = ConexionJDBC.getConexion()) {
-            String sql = "UPDATE tasa SET TasIden=?, TasDes=?, TasTas=?, TasPlaz=?, TasIniFecha=?, TasFinFecha=? WHERE TasCod=?";
+            String sql = "UPDATE tasa SET TasIden=?, TasDes=?, TasTas=?, TasPlaz=?, "
+                       + "TasIniFecha=?, TasFinFecha=? WHERE TasCod=?";
             PreparedStatement ps = conn.prepareStatement(sql);
 
             ps.setString(1, registroPanel.txtTasIden.getText().trim());
             ps.setString(2, registroPanel.txtTasDes.getText().trim());
-            ps.setBigDecimal(3, new java.math.BigDecimal(registroPanel.txtTasTas.getText().trim()));
+            ps.setFloat(3, Float.parseFloat(registroPanel.txtTasTas.getText().trim()));
             ps.setString(4, registroPanel.txtTasPlaz.getText().trim());
-            ps.setInt(5, Integer.parseInt(registroPanel.txtTasIniFecha.getText().trim()));
-            ps.setInt(6, Integer.parseInt(registroPanel.txtTasFinFecha.getText().trim()));
+
+            java.util.Date ini = registroPanel.dateIni.getDate();
+            java.util.Date fin = registroPanel.dateFin.getDate();
+            if (ini == null || fin == null) {
+                JOptionPane.showMessageDialog(null, "Seleccione ambas fechas.");
+                return;
+            }
+            ps.setDate(5, new java.sql.Date(ini.getTime()));
+            ps.setDate(6, new java.sql.Date(fin.getTime()));
             ps.setInt(7, Integer.parseInt(registroPanel.txtTasCod.getText().trim()));
 
             ps.executeUpdate();
@@ -165,8 +206,8 @@ public class TasaController {
         registroPanel.txtTasDes.setText("");
         registroPanel.txtTasTas.setText("");
         registroPanel.txtTasPlaz.setText("");
-        registroPanel.txtTasIniFecha.setText("");
-        registroPanel.txtTasFinFecha.setText("");
+        registroPanel.dateIni.setDate(null);
+        registroPanel.dateFin.setDate(null);
     }
 
     private void inactivar() {

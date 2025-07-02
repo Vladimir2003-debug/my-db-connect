@@ -6,7 +6,14 @@ import ui.persona.RegistroPersonaPanel;
 import ui.persona.TablaPersonaPanel;
 
 import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.*;
+import java.util.*;
+import java.util.Date;
 
 public class PersonaController {
     private RegistroPersonaPanel registroPanel;
@@ -15,14 +22,57 @@ public class PersonaController {
     private int flagAct = 0;
     private String modoOperacion = "";
 
+    private Map<Integer, String> mapCoo = new HashMap<>();
+    private Map<Integer, String> mapDat = new HashMap<>();
+
     public PersonaController(RegistroPersonaPanel registro, TablaPersonaPanel tabla, BotonesPanel botones) {
         this.registroPanel = registro;
         this.tablaPanel = tabla;
         this.botonesPanel = botones;
 
+        cargarCooperativas();
+        cargarDatos();
         cargarDatosDesdeBD();
         botonesPanel.activarModoNormal();
         initListeners();
+    }
+
+    private void cargarCooperativas() {
+        mapCoo.clear();
+        registroPanel.comboPerCoo.removeAllItems();
+        try (Connection conn = ConexionJDBC.getConexion()) {
+            String sql = "SELECT CooCod, CooNom FROM cooperativa";
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            while (rs.next()) {
+                int id = rs.getInt("CooCod");
+                String nombre = rs.getString("CooNom");
+                mapCoo.put(id, nombre);
+                registroPanel.comboPerCoo.addItem(nombre);
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Error al cargar cooperativas: " + e.getMessage());
+        }
+    }
+
+    private void cargarDatos() {
+        mapDat.clear();
+        registroPanel.comboPerDat.removeAllItems();
+        try (Connection conn = ConexionJDBC.getConexion()) {
+            String sql = "SELECT DatCod, DatNom FROM dato";
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            while (rs.next()) {
+                int id = rs.getInt("DatCod");
+                String nombre = rs.getString("DatNom");
+                mapDat.put(id, nombre);
+                registroPanel.comboPerDat.addItem(nombre);
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Error al cargar datos: " + e.getMessage());
+        }
     }
 
     private void cargarDatosDesdeBD() {
@@ -33,14 +83,17 @@ public class PersonaController {
             ResultSet rs = stmt.executeQuery(sql);
 
             while (rs.next()) {
+                int idCoo = rs.getInt("PerCoo");
+                int idDat = rs.getInt("PerDat");
+
                 Object[] fila = {
                     rs.getInt("PerCod"),
                     rs.getString("PerIden"),
                     rs.getString("PerCor"),
-                    rs.getBytes("PerFot"),
-                    rs.getInt("PerCoo"),
-                    rs.getInt("PerDat"),
-                    rs.getInt("PerFecha")
+                    rs.getString("PerFot"),
+                    mapCoo.getOrDefault(idCoo, "Desconocido"),
+                    mapDat.getOrDefault(idDat, "Desconocido"),
+                    rs.getDate("PerFecha")
                 };
                 tablaPanel.modelo.addRow(fila);
             }
@@ -58,6 +111,24 @@ public class PersonaController {
         botonesPanel.btnSalir.addActionListener(e -> salirDelPrograma());
         botonesPanel.btnInactivar.addActionListener(e -> inactivar());
         botonesPanel.btnReactivar.addActionListener(e -> reactivar());
+
+        registroPanel.btnSeleccionarFoto.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                JFileChooser chooser = new JFileChooser();
+                chooser.setDialogTitle("Seleccionar imagen");
+                int result = chooser.showOpenDialog(registroPanel);
+                if (result == JFileChooser.APPROVE_OPTION) {
+                    File selected = chooser.getSelectedFile();
+                    String destino = "src/img/" + selected.getName();
+                    try {
+                        Files.copy(selected.toPath(), Paths.get(destino));
+                        registroPanel.setRutaFoto(destino);
+                    } catch (Exception ex) {
+                        JOptionPane.showMessageDialog(null, "Error al copiar la imagen: " + ex.getMessage());
+                    }
+                }
+            }
+        });
     }
 
     private void agregarPersona() {
@@ -67,19 +138,27 @@ public class PersonaController {
 
             ps.setString(1, registroPanel.txtPerIden.getText().trim());
             ps.setString(2, registroPanel.txtPerCor.getText().trim());
-            ps.setBytes(3, registroPanel.getFotoBytes());  // método que retorna los bytes de la imagen
-            ps.setInt(4, Integer.parseInt(registroPanel.txtPerCoo.getText().trim()));
-            ps.setInt(5, Integer.parseInt(registroPanel.txtPerDat.getText().trim()));
-            ps.setInt(6, Integer.parseInt(registroPanel.txtPerFecha.getText().trim()));
+            ps.setString(3, registroPanel.getRutaFoto());
+
+            int idCoo = obtenerClaveSeleccionada(mapCoo, (String) registroPanel.comboPerCoo.getSelectedItem());
+            int idDat = obtenerClaveSeleccionada(mapDat, (String) registroPanel.comboPerDat.getSelectedItem());
+
+            ps.setInt(4, idCoo);
+            ps.setInt(5, idDat);
+
+            Date fecha = registroPanel.datePerFecha.getDate();
+            if (fecha == null) {
+                JOptionPane.showMessageDialog(null, "Seleccione una fecha válida");
+                return;
+            }
+            ps.setDate(6, new java.sql.Date(fecha.getTime()));
 
             ps.executeUpdate();
             JOptionPane.showMessageDialog(null, "Persona insertada correctamente.");
             cargarDatosDesdeBD();
             limpiarCampos();
-        } catch (SQLException e) {
+        } catch (Exception e) {
             JOptionPane.showMessageDialog(null, "Error al insertar: " + e.getMessage());
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(null, "Campos numéricos inválidos.");
         }
     }
 
@@ -93,10 +172,10 @@ public class PersonaController {
         registroPanel.txtPerCod.setText(tablaPanel.modelo.getValueAt(fila, 0).toString());
         registroPanel.txtPerIden.setText(tablaPanel.modelo.getValueAt(fila, 1).toString());
         registroPanel.txtPerCor.setText(tablaPanel.modelo.getValueAt(fila, 2).toString());
-        registroPanel.setFotoBytes((byte[]) tablaPanel.modelo.getValueAt(fila, 3)); // cargar imagen
-        registroPanel.txtPerCoo.setText(tablaPanel.modelo.getValueAt(fila, 4).toString());
-        registroPanel.txtPerDat.setText(tablaPanel.modelo.getValueAt(fila, 5).toString());
-        registroPanel.txtPerFecha.setText(tablaPanel.modelo.getValueAt(fila, 6).toString());
+        registroPanel.setRutaFoto((String) tablaPanel.modelo.getValueAt(fila, 3));
+        registroPanel.comboPerCoo.setSelectedItem(tablaPanel.modelo.getValueAt(fila, 4).toString());
+        registroPanel.comboPerDat.setSelectedItem(tablaPanel.modelo.getValueAt(fila, 5).toString());
+        registroPanel.datePerFecha.setDate((Date) tablaPanel.modelo.getValueAt(fila, 6));
 
         flagAct = 1;
         modoOperacion = "modificar";
@@ -114,10 +193,16 @@ public class PersonaController {
 
             ps.setString(1, registroPanel.txtPerIden.getText().trim());
             ps.setString(2, registroPanel.txtPerCor.getText().trim());
-            ps.setBytes(3, registroPanel.getFotoBytes());
-            ps.setInt(4, Integer.parseInt(registroPanel.txtPerCoo.getText().trim()));
-            ps.setInt(5, Integer.parseInt(registroPanel.txtPerDat.getText().trim()));
-            ps.setInt(6, Integer.parseInt(registroPanel.txtPerFecha.getText().trim()));
+            ps.setString(3, registroPanel.getRutaFoto());
+
+            int idCoo = obtenerClaveSeleccionada(mapCoo, (String) registroPanel.comboPerCoo.getSelectedItem());
+            int idDat = obtenerClaveSeleccionada(mapDat, (String) registroPanel.comboPerDat.getSelectedItem());
+
+            ps.setInt(4, idCoo);
+            ps.setInt(5, idDat);
+
+            Date fecha = registroPanel.datePerFecha.getDate();
+            ps.setDate(6, new java.sql.Date(fecha.getTime()));
             ps.setInt(7, Integer.parseInt(registroPanel.txtPerCod.getText().trim()));
 
             ps.executeUpdate();
@@ -127,9 +212,18 @@ public class PersonaController {
             flagAct = 0;
             modoOperacion = "";
             botonesPanel.activarModoNormal();
-        } catch (SQLException e) {
+        } catch (Exception e) {
             JOptionPane.showMessageDialog(null, "Error al actualizar: " + e.getMessage());
         }
+    }
+
+    private int obtenerClaveSeleccionada(Map<Integer, String> map, String valor) {
+        for (Map.Entry<Integer, String> entry : map.entrySet()) {
+            if (entry.getValue().equals(valor)) {
+                return entry.getKey();
+            }
+        }
+        return -1;
     }
 
     private void eliminarPersona() {
@@ -163,9 +257,9 @@ public class PersonaController {
         registroPanel.txtPerCod.setText("");
         registroPanel.txtPerIden.setText("");
         registroPanel.txtPerCor.setText("");
-        registroPanel.txtPerCoo.setText("");
-        registroPanel.txtPerDat.setText("");
-        registroPanel.txtPerFecha.setText("");
+        registroPanel.comboPerCoo.setSelectedIndex(-1);
+        registroPanel.comboPerDat.setSelectedIndex(-1);
+        registroPanel.datePerFecha.setDate(null);
         registroPanel.limpiarFoto();
     }
 

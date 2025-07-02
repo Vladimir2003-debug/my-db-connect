@@ -5,8 +5,14 @@ import ui.BotonesPanel;
 import ui.cooperativa.RegistroCooperativaPanel;
 import ui.cooperativa.TablaCooperativaPanel;
 
-import java.sql.*;
 import javax.swing.*;
+import java.sql.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.io.IOException;
+import java.nio.file.Path;
 
 public class CooperativaController {
     private RegistroCooperativaPanel registroPanel;
@@ -14,15 +20,35 @@ public class CooperativaController {
     private BotonesPanel botonesPanel;
     private int flagAct = 0;
     private String modoOperacion = "";
+    private Map<Integer, String> mapUsu = new HashMap<>();
 
     public CooperativaController(RegistroCooperativaPanel registro, TablaCooperativaPanel tabla, BotonesPanel botones) {
         this.registroPanel = registro;
         this.tablaPanel = tabla;
         this.botonesPanel = botones;
 
+        cargarUsuarios();
         cargarDatosDesdeBD();
         botonesPanel.activarModoNormal();
         initListeners();
+    }
+
+    private void cargarUsuarios() {
+        mapUsu.clear();
+        registroPanel.comboCooUsu.removeAllItems();
+        try (Connection conn = ConexionJDBC.getConexion()) {
+            String sql = "SELECT UsuCod, UsuUsu FROM usuario";
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+            while (rs.next()) {
+                int id = rs.getInt("UsuCod");
+                String nombre = rs.getString("UsuUsu");
+                mapUsu.put(id, nombre);
+                registroPanel.comboCooUsu.addItem(nombre);
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Error al cargar usuarios: " + e.getMessage());
+        }
     }
 
     private void cargarDatosDesdeBD() {
@@ -34,16 +60,16 @@ public class CooperativaController {
 
             while (rs.next()) {
                 Object[] fila = {
-                    rs.getInt("CooCod"),
-                    rs.getString("CooIde"),
-                    rs.getString("CooNom"),
-                    rs.getString("CooSig"),
-                    rs.getString("CooDir"),
-                    rs.getInt("CooTel"),
-                    rs.getString("CooCor"),
-                    rs.getString("CooSlo"),
-                    rs.getBytes("CooLog"),  // BLOB
-                    rs.getString("CooUsu")
+                        rs.getInt("CooCod"),
+                        rs.getString("CooIde"),
+                        rs.getString("CooNom"),
+                        rs.getString("CooSig"),
+                        rs.getString("CooDir"),
+                        rs.getInt("CooTel"),
+                        rs.getString("CooCor"),
+                        rs.getString("CooSlo"),
+                        rs.getBytes("CooLog"),
+                        rs.getString("CooUsu")
                 };
                 tablaPanel.modelo.addRow(fila);
             }
@@ -65,8 +91,7 @@ public class CooperativaController {
 
     private void agregarCooperativa() {
         try (Connection conn = ConexionJDBC.getConexion()) {
-            String sql = "INSERT INTO cooperativa (CooIde, CooNom, CooSig, CooDir, CooTel, CooCor, CooSlo, CooUsu) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-
+            String sql = "INSERT INTO cooperativa (CooIde, CooNom, CooSig, CooDir, CooTel, CooCor, CooSlo, CooLog, CooUsu) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
             PreparedStatement ps = conn.prepareStatement(sql);
 
             ps.setString(1, registroPanel.txtCooIde.getText().trim());
@@ -76,7 +101,16 @@ public class CooperativaController {
             ps.setInt(5, Integer.parseInt(registroPanel.txtCooTel.getText().trim()));
             ps.setString(6, registroPanel.txtCooCor.getText().trim());
             ps.setString(7, registroPanel.txtCooSlo.getText().trim());
-            ps.setString(8, registroPanel.txtCooUsu.getText().trim());
+
+            String ruta = registroPanel.getRutaCooLog();
+            byte[] imagen = (ruta != null && !ruta.isEmpty()) ? Files.readAllBytes(Paths.get(ruta)) : null;
+            ps.setBytes(8, imagen);
+
+            String usuarioNombre = (String) registroPanel.comboCooUsu.getSelectedItem();
+            int usuarioId = mapUsu.entrySet().stream()
+                    .filter(e -> e.getValue().equals(usuarioNombre))
+                    .map(Map.Entry::getKey).findFirst().orElse(0);
+            ps.setString(9, usuarioNombre);
 
             ps.executeUpdate();
             JOptionPane.showMessageDialog(null, "Cooperativa insertada correctamente.");
@@ -86,6 +120,8 @@ public class CooperativaController {
             JOptionPane.showMessageDialog(null, "Error al insertar: " + e.getMessage());
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(null, "Número de teléfono inválido.");
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(null, "Error al leer el CooLog: " + e.getMessage());
         }
     }
 
@@ -104,7 +140,11 @@ public class CooperativaController {
         registroPanel.txtCooTel.setText(tablaPanel.modelo.getValueAt(fila, 5).toString());
         registroPanel.txtCooCor.setText(tablaPanel.modelo.getValueAt(fila, 6).toString());
         registroPanel.txtCooSlo.setText(tablaPanel.modelo.getValueAt(fila, 7).toString());
-        registroPanel.txtCooUsu.setText(tablaPanel.modelo.getValueAt(fila, 9).toString());
+
+        registroPanel.setRutaCooLog(null); // Limpiar visualización de imagen
+
+        String usuario = tablaPanel.modelo.getValueAt(fila, 9).toString();
+        registroPanel.comboCooUsu.setSelectedItem(usuario);
 
         flagAct = 1;
         modoOperacion = "modificar";
@@ -117,8 +157,7 @@ public class CooperativaController {
         }
 
         try (Connection conn = ConexionJDBC.getConexion()) {
-            String sql = "UPDATE cooperativa SET CooIde=?, CooNom=?, CooSig=?, CooDir=?, CooTel=?, CooCor=?, CooSlo=?, CooUsu=? WHERE CooCod=?";
-
+            String sql = "UPDATE cooperativa SET CooIde=?, CooNom=?, CooSig=?, CooDir=?, CooTel=?, CooCor=?, CooSlo=?, CooLog=?, CooUsu=? WHERE CooCod=?";
             PreparedStatement ps = conn.prepareStatement(sql);
 
             ps.setString(1, registroPanel.txtCooIde.getText().trim());
@@ -128,11 +167,16 @@ public class CooperativaController {
             ps.setInt(5, Integer.parseInt(registroPanel.txtCooTel.getText().trim()));
             ps.setString(6, registroPanel.txtCooCor.getText().trim());
             ps.setString(7, registroPanel.txtCooSlo.getText().trim());
-            ps.setString(8, registroPanel.txtCooUsu.getText().trim());
-            ps.setInt(9, Integer.parseInt(registroPanel.txtCooCod.getText().trim()));
+
+            String ruta = registroPanel.getRutaCooLog();
+            byte[] imagen = (ruta != null && !ruta.isEmpty()) ? Files.readAllBytes(Paths.get(ruta)) : null;
+            ps.setBytes(8, imagen);
+
+            String usuarioNombre = (String) registroPanel.comboCooUsu.getSelectedItem();
+            ps.setString(9, usuarioNombre);
+            ps.setInt(10, Integer.parseInt(registroPanel.txtCooCod.getText().trim()));
 
             ps.executeUpdate();
-
             JOptionPane.showMessageDialog(null, "Cooperativa actualizada correctamente.");
             cargarDatosDesdeBD();
             limpiarCampos();
@@ -141,6 +185,8 @@ public class CooperativaController {
             botonesPanel.activarModoNormal();
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(null, "Error al actualizar: " + e.getMessage());
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(null, "Error al leer el CooLog: " + e.getMessage());
         }
     }
 
@@ -153,7 +199,8 @@ public class CooperativaController {
 
         int cooCod = Integer.parseInt(tablaPanel.modelo.getValueAt(fila, 0).toString());
 
-        int confirm = JOptionPane.showConfirmDialog(null, "¿Eliminar esta cooperativa?", "Confirmación", JOptionPane.YES_NO_OPTION);
+        int confirm = JOptionPane.showConfirmDialog(null, "¿Eliminar esta cooperativa?", "Confirmación",
+                JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             try (Connection conn = ConexionJDBC.getConexion()) {
                 String sql = "DELETE FROM cooperativa WHERE CooCod = ?";
@@ -179,7 +226,8 @@ public class CooperativaController {
         registroPanel.txtCooTel.setText("");
         registroPanel.txtCooCor.setText("");
         registroPanel.txtCooSlo.setText("");
-        registroPanel.txtCooUsu.setText("");
+        registroPanel.comboCooUsu.setSelectedIndex(-1);
+        registroPanel.setRutaCooLog(null);
     }
 
     private void inactivar() {

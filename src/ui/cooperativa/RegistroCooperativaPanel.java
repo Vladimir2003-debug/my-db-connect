@@ -2,10 +2,16 @@ package ui.cooperativa;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 public class RegistroCooperativaPanel extends JPanel {
-    public JTextField txtCooCod, txtCooIde, txtCooNom, txtCooSig, txtCooDir, txtCooTel, txtCooCor, txtCooSlo, txtCooUsu;
+    public JTextField txtCooCod, txtCooIde, txtCooNom, txtCooSig, txtCooDir, txtCooTel, txtCooCor, txtCooSlo;
+    public JComboBox<String> comboCooUsu;
     public JCheckBox chkEstado;
+    private String rutaCooLog;
+    private JButton btnSeleccionarCooLog;
+    private JLabel lblRutaCooLog;
 
     public RegistroCooperativaPanel() {
         setBorder(BorderFactory.createTitledBorder("Registro de Cooperativa"));
@@ -20,8 +26,22 @@ public class RegistroCooperativaPanel extends JPanel {
         txtCooTel = new JTextField(9);
         txtCooCor = new JTextField(20);
         txtCooSlo = new JTextField(20);
-        txtCooUsu = new JTextField(15);
+        comboCooUsu = new JComboBox<>();
         chkEstado = new JCheckBox("Activo");
+
+        lblRutaCooLog = new JLabel("Sin CooLog seleccionado");
+        btnSeleccionarCooLog = new JButton("Seleccionar CooLog");
+        btnSeleccionarCooLog.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JFileChooser fileChooser = new JFileChooser();
+                int seleccion = fileChooser.showOpenDialog(null);
+                if (seleccion == JFileChooser.APPROVE_OPTION) {
+                    rutaCooLog = fileChooser.getSelectedFile().getAbsolutePath();
+                    lblRutaCooLog.setText(rutaCooLog);
+                }
+            }
+        });
 
         int y = 0;
         add(new JLabel("CooCod:"), gbc(0, y)); add(txtCooCod, gbc(1, y++));
@@ -32,7 +52,9 @@ public class RegistroCooperativaPanel extends JPanel {
         add(new JLabel("CooTel:"), gbc(0, y)); add(txtCooTel, gbc(1, y++));
         add(new JLabel("CooCor:"), gbc(0, y)); add(txtCooCor, gbc(1, y++));
         add(new JLabel("CooSlo:"), gbc(0, y)); add(txtCooSlo, gbc(1, y++));
-        add(new JLabel("CooUsu:"), gbc(0, y)); add(txtCooUsu, gbc(1, y++));
+        add(new JLabel("CooUsu:"), gbc(0, y)); add(comboCooUsu, gbc(1, y++));
+        add(new JLabel("CooLog:"), gbc(0, y)); add(lblRutaCooLog, gbc(1, y++));
+        add(btnSeleccionarCooLog, gbc(1, y++));
         add(new JLabel("Estado Registro:"), gbc(0, y)); add(chkEstado, gbc(1, y));
     }
 
@@ -48,5 +70,14 @@ public class RegistroCooperativaPanel extends JPanel {
         gbc.gridx = x;
         gbc.gridy = y;
         return gbc;
+    }
+
+    public String getRutaCooLog() {
+        return rutaCooLog;
+    }
+
+    public void setRutaCooLog(String rutaCooLog) {
+        this.rutaCooLog = rutaCooLog;
+        lblRutaCooLog.setText(rutaCooLog != null ? rutaCooLog : "Sin CooLog seleccionado");
     }
 }

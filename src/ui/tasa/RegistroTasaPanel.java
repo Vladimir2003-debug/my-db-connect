@@ -2,10 +2,12 @@ package ui.tasa;
 
 import javax.swing.*;
 import java.awt.*;
+import com.toedter.calendar.JDateChooser;
 
 public class RegistroTasaPanel extends JPanel {
-    public JTextField txtTasCod, txtTasIden, txtTasDes, txtTasTas, txtTasPlaz, txtTasIniFecha, txtTasFinFecha;
+    public JTextField txtTasCod, txtTasIden, txtTasDes, txtTasTas, txtTasPlaz;
     public JCheckBox chkEstado;
+    public JDateChooser dateIni, dateFin;
 
     public RegistroTasaPanel() {
         setBorder(BorderFactory.createTitledBorder("Registro de Tasa"));
@@ -16,8 +18,13 @@ public class RegistroTasaPanel extends JPanel {
         txtTasDes = new JTextField(20);
         txtTasTas = new JTextField(10);
         txtTasPlaz = new JTextField(10);
-        txtTasIniFecha = new JTextField(10);
-        txtTasFinFecha = new JTextField(10);
+
+        dateIni = new JDateChooser();
+        dateIni.setDateFormatString("yyyy-MM-dd");
+
+        dateFin = new JDateChooser();
+        dateFin.setDateFormatString("yyyy-MM-dd");
+
         chkEstado = new JCheckBox("Activo");
 
         int y = 0;
@@ -26,8 +33,8 @@ public class RegistroTasaPanel extends JPanel {
         add(new JLabel("TasDes:"), gbc(0, y)); add(txtTasDes, gbc(1, y++));
         add(new JLabel("TasTas:"), gbc(0, y)); add(txtTasTas, gbc(1, y++));
         add(new JLabel("TasPlaz:"), gbc(0, y)); add(txtTasPlaz, gbc(1, y++));
-        add(new JLabel("TasIniFecha:"), gbc(0, y)); add(txtTasIniFecha, gbc(1, y++));
-        add(new JLabel("TasFinFecha:"), gbc(0, y)); add(txtTasFinFecha, gbc(1, y++));
+        add(new JLabel("TasIniFecha:"), gbc(0, y)); add(dateIni, gbc(1, y++));
+        add(new JLabel("TasFinFecha:"), gbc(0, y)); add(dateFin, gbc(1, y++));
         add(new JLabel("Estado Registro:"), gbc(0, y)); add(chkEstado, gbc(1, y));
     }
 

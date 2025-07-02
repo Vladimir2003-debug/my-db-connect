@@ -1,5 +1,7 @@
 package model;
 
+import java.sql.Date;
+
 public class Socio {
     private int socCod;
     private String socIden;
@@ -11,10 +13,10 @@ public class Socio {
     private String socDis;
     private int socEmp;
     private int socDat;
-    private int socFecha;
+    private Date socFecha;
 
     public Socio(int socCod, String socIden, String socCor, String socTipPro, String socCta,
-                 String socDep, String socPro, String socDis, int socEmp, int socDat, int socFecha) {
+                 String socDep, String socPro, String socDis, int socEmp, int socDat, Date socFecha) {
         this.socCod = socCod;
         this.socIden = socIden;
         this.socCor = socCor;
@@ -38,5 +40,5 @@ public class Socio {
     public String getSocDis() { return socDis; }
     public int getSocEmp() { return socEmp; }
     public int getSocDat() { return socDat; }
-    public int getSocFecha() { return socFecha; }
+    public Date getSocFecha() { return socFecha; }
 }

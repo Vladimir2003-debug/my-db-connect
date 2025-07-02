@@ -21,6 +21,7 @@ public class UsuarioController {
     private int usuFlagAct = 0;
     private String modoOperacion = "";
     private Map<String, Integer> mapaRol = new HashMap<>();
+    private Map<String, Integer> mapaCoo = new HashMap<>();
 
     public UsuarioController(RegistroUsuarioPanel registro, TablaUsuarioPanel tabla, BotonesPanel botones) {
         this.registroPanel = registro;
@@ -29,6 +30,8 @@ public class UsuarioController {
 
         cargarDatosDesdeBD();
         cargarRolesEnCombo();
+        cargarCooperativasEnCombo();
+
         initListeners();
         botonesPanel.activarModoNormal();
     }
@@ -52,6 +55,28 @@ public class UsuarioController {
             }
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(null, "Error al cargar usuarios: " + e.getMessage());
+        }
+    }
+
+    private void cargarCooperativasEnCombo() {
+        registroPanel.comboUsuCoo.removeAllItems();
+        mapaCoo.clear();
+
+        try (Connection conn = ConexionJDBC.getConexion()) {
+            String sql = "SELECT CooCod, CooNom FROM cooperativa";
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            while (rs.next()) {
+                int cod = rs.getInt("CooCod");
+                String nom = rs.getString("CooNom");
+                mapaCoo.put(nom, cod);
+                registroPanel.comboUsuCoo.addItem(nom);
+            }
+
+            registroPanel.comboUsuCoo.setSelectedIndex(-1);
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Error al cargar cooperativas: " + e.getMessage());
         }
     }
 
@@ -107,7 +132,8 @@ public class UsuarioController {
         String usu = registroPanel.txtUsuUsu.getText().trim();
         String pas = new String(registroPanel.txtUsuPas.getPassword());
         String pasHash = hashSHA256(pas);
-        String emp = registroPanel.txtUsuEmp.getText().trim();
+        String cooNombre = (String) registroPanel.comboUsuCoo.getSelectedItem();
+        Integer cooCod = mapaCoo.get(cooNombre);
 
         if (ide.isEmpty() || usu.isEmpty() || pas.isEmpty()) {
             JOptionPane.showMessageDialog(null, "Complete los campos obligatorios: Ide, Usuario y Contraseña.");
@@ -116,6 +142,7 @@ public class UsuarioController {
 
         try (Connection conn = ConexionJDBC.getConexion()) {
             String sql = "INSERT INTO usuario (UsuIde, UsuUsu, UsuPas, UsuRol, UsuEmp) VALUES (?, ?, ?, ?, ?)";
+
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, ide);
             ps.setString(2, usu);
@@ -129,10 +156,10 @@ public class UsuarioController {
             else
                 ps.setInt(4, rolCod);
 
-            if (emp.isEmpty())
-                ps.setNull(5, Types.VARCHAR);
+            if (cooCod == null)
+                ps.setNull(5, Types.INTEGER);
             else
-                ps.setString(5, emp);
+                ps.setInt(5, cooCod);
 
             ps.executeUpdate();
 
@@ -156,8 +183,13 @@ public class UsuarioController {
         registroPanel.txtUsuUsu.setText(tablaPanel.modelo.getValueAt(fila, 2).toString());
         registroPanel.txtUsuPas.setText(tablaPanel.modelo.getValueAt(fila, 3).toString());
         registroPanel.comboUsuRol.setSelectedItem(String.valueOf(tablaPanel.modelo.getValueAt(fila, 4)));
-        registroPanel.txtUsuEmp.setText(
-                tablaPanel.modelo.getValueAt(fila, 5) != null ? tablaPanel.modelo.getValueAt(fila, 5).toString() : "");
+        int cooCod = Integer.parseInt(tablaPanel.modelo.getValueAt(fila, 6).toString());
+        for (Map.Entry<String, Integer> entry : mapaCoo.entrySet()) {
+            if (entry.getValue().equals(cooCod)) {
+                registroPanel.comboUsuCoo.setSelectedItem(entry.getKey());
+                break;
+            }
+        }
 
         usuFlagAct = 1;
         modoOperacion = "modificar";
@@ -172,7 +204,7 @@ public class UsuarioController {
         }
 
         int cod = Integer.parseInt(registroPanel.txtUsuCod.getText());
-        String sql = "UPDATE usuario SET UsuIde=?, UsuUsu=?, UsuPas=?, UsuRol=?, UsuEmp=? WHERE UsuCod=?";
+        String sql = "UPDATE usuario SET UsuIde=?, UsuUsu=?, UsuPas=?, UsuRol=?, UsuEmp=?, UsuCoo=? WHERE UsuCod=?";
 
         try (Connection conn = ConexionJDBC.getConexion();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -187,11 +219,13 @@ public class UsuarioController {
             else
                 ps.setInt(4, Integer.parseInt(rol));
 
-            String emp = registroPanel.txtUsuEmp.getText();
-            if (emp.isEmpty())
-                ps.setNull(5, Types.VARCHAR);
+            String cooNombre = (String) registroPanel.comboUsuCoo.getSelectedItem();
+            Integer cooCod = mapaCoo.get(cooNombre);
+
+            if (cooCod == null)
+                ps.setNull(6, Types.INTEGER);
             else
-                ps.setString(5, emp);
+                ps.setInt(6, cooCod);
 
             ps.setInt(6, cod);
             ps.executeUpdate();
@@ -284,7 +318,7 @@ public class UsuarioController {
         registroPanel.txtUsuUsu.setEnabled(false);
         registroPanel.txtUsuPas.setEnabled(false);
         registroPanel.comboUsuRol.setEnabled(false);
-        registroPanel.txtUsuEmp.setEnabled(false);
+        registroPanel.comboUsuCoo.setEnabled(false);
         registroPanel.chkEstado.setEnabled(false);
     }
 
@@ -294,7 +328,7 @@ public class UsuarioController {
         registroPanel.txtUsuUsu.setEnabled(true);
         registroPanel.txtUsuPas.setEnabled(true);
         registroPanel.comboUsuRol.setEnabled(true);
-        registroPanel.txtUsuEmp.setEnabled(true);
+        registroPanel.comboUsuCoo.setEnabled(true);
         registroPanel.chkEstado.setEnabled(true);
     }
 
@@ -311,7 +345,7 @@ public class UsuarioController {
         registroPanel.txtUsuUsu.setText("");
         registroPanel.txtUsuPas.setText("");
         registroPanel.comboUsuRol.setSelectedIndex(-1);
-        registroPanel.txtUsuEmp.setText("");
+        registroPanel.comboUsuCoo.setSelectedIndex(-1);
     }
 
     private void salirDelPrograma() {

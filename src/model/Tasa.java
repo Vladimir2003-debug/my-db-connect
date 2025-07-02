@@ -1,18 +1,18 @@
 package model;
 
-import java.math.BigDecimal;
+import java.sql.Date;
 
 public class Tasa {
     private int tasCod;
     private String tasIden;
     private String tasDes;
-    private BigDecimal tasTas; // DECIMAL(10,2) se representa como BigDecimal
+    private float tasTas; // cambiado de BigDecimal a float
     private String tasPlaz;
-    private int tasIniFecha;
-    private int tasFinFecha;
+    private Date tasIniFecha;
+    private Date tasFinFecha;
 
-    public Tasa(int tasCod, String tasIden, String tasDes, BigDecimal tasTas,
-                String tasPlaz, int tasIniFecha, int tasFinFecha) {
+    public Tasa(int tasCod, String tasIden, String tasDes, float tasTas,
+            String tasPlaz, Date tasIniFecha, Date tasFinFecha) {
         this.tasCod = tasCod;
         this.tasIden = tasIden;
         this.tasDes = tasDes;
@@ -22,11 +22,31 @@ public class Tasa {
         this.tasFinFecha = tasFinFecha;
     }
 
-    public int getTasCod() { return tasCod; }
-    public String getTasIden() { return tasIden; }
-    public String getTasDes() { return tasDes; }
-    public BigDecimal getTasTas() { return tasTas; }
-    public String getTasPlaz() { return tasPlaz; }
-    public int getTasIniFecha() { return tasIniFecha; }
-    public int getTasFinFecha() { return tasFinFecha; }
+    public int getTasCod() {
+        return tasCod;
+    }
+
+    public String getTasIden() {
+        return tasIden;
+    }
+
+    public String getTasDes() {
+        return tasDes;
+    }
+
+    public float getTasTas() {
+        return tasTas;
+    }
+
+    public String getTasPlaz() {
+        return tasPlaz;
+    }
+
+    public Date getTasIniFecha() {
+        return tasIniFecha;
+    }
+
+    public Date getTasFinFecha() {
+        return tasFinFecha;
+    }
 }

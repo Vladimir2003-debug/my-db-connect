@@ -7,6 +7,8 @@ import ui.socio.TablaSocioPanel;
 
 import javax.swing.*;
 import java.sql.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class SocioController {
     private RegistroSocioPanel registroPanel;
@@ -15,14 +17,57 @@ public class SocioController {
     private int flagAct = 0;
     private String modoOperacion = "";
 
+    private final Map<Integer, String> mapCoo = new LinkedHashMap<>();
+    private final Map<Integer, String> mapDat = new LinkedHashMap<>();
+
     public SocioController(RegistroSocioPanel registro, TablaSocioPanel tabla, BotonesPanel botones) {
         this.registroPanel = registro;
         this.tablaPanel = tabla;
         this.botonesPanel = botones;
 
+        cargarCooperativas();
+        cargarDatos();
         cargarDatosDesdeBD();
         botonesPanel.activarModoNormal();
         initListeners();
+    }
+
+    private void cargarCooperativas() {
+        mapCoo.clear();
+        registroPanel.comboSocEmp.removeAllItems();
+        try (Connection conn = ConexionJDBC.getConexion()) {
+            String sql = "SELECT CooCod, CooNom FROM cooperativa";
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            while (rs.next()) {
+                int id = rs.getInt("CooCod");
+                String nombre = rs.getString("CooNom");
+                mapCoo.put(id, nombre);
+                registroPanel.comboSocEmp.addItem(nombre);
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Error al cargar cooperativas: " + e.getMessage());
+        }
+    }
+
+    private void cargarDatos() {
+        mapDat.clear();
+        registroPanel.comboSocDat.removeAllItems();
+        try (Connection conn = ConexionJDBC.getConexion()) {
+            String sql = "SELECT DatCod, DatNom FROM dato";
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(sql);
+
+            while (rs.next()) {
+                int id = rs.getInt("DatCod");
+                String nombre = rs.getString("DatNom");
+                mapDat.put(id, nombre);
+                registroPanel.comboSocDat.addItem(nombre);
+            }
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(null, "Error al cargar datos: " + e.getMessage());
+        }
     }
 
     private void cargarDatosDesdeBD() {
@@ -44,7 +89,7 @@ public class SocioController {
                     rs.getString("SocDis"),
                     rs.getInt("SocEmp"),
                     rs.getInt("SocDat"),
-                    rs.getInt("SocFecha")
+                    rs.getDate("SocFecha")
                 };
                 tablaPanel.modelo.addRow(fila);
             }
@@ -76,9 +121,19 @@ public class SocioController {
             ps.setString(5, registroPanel.txtSocDep.getText().trim());
             ps.setString(6, registroPanel.txtSocPro.getText().trim());
             ps.setString(7, registroPanel.txtSocDis.getText().trim());
-            ps.setInt(8, Integer.parseInt(registroPanel.txtSocEmp.getText().trim()));
-            ps.setInt(9, Integer.parseInt(registroPanel.txtSocDat.getText().trim()));
-            ps.setInt(10, Integer.parseInt(registroPanel.txtSocFecha.getText().trim()));
+
+            int codEmp = obtenerClavePorValor(mapCoo, (String) registroPanel.comboSocEmp.getSelectedItem());
+            int codDat = obtenerClavePorValor(mapDat, (String) registroPanel.comboSocDat.getSelectedItem());
+
+            ps.setInt(8, codEmp);
+            ps.setInt(9, codDat);
+
+            java.util.Date fecha = registroPanel.dateSocFecha.getDate();
+            if (fecha == null) {
+                JOptionPane.showMessageDialog(null, "Seleccione una fecha.");
+                return;
+            }
+            ps.setDate(10, new java.sql.Date(fecha.getTime()));
 
             ps.executeUpdate();
             JOptionPane.showMessageDialog(null, "Socio insertado correctamente.");
@@ -86,8 +141,6 @@ public class SocioController {
             limpiarCampos();
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(null, "Error al insertar: " + e.getMessage());
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(null, "Campos numéricos inválidos.");
         }
     }
 
@@ -106,9 +159,18 @@ public class SocioController {
         registroPanel.txtSocDep.setText(tablaPanel.modelo.getValueAt(fila, 5).toString());
         registroPanel.txtSocPro.setText(tablaPanel.modelo.getValueAt(fila, 6).toString());
         registroPanel.txtSocDis.setText(tablaPanel.modelo.getValueAt(fila, 7).toString());
-        registroPanel.txtSocEmp.setText(tablaPanel.modelo.getValueAt(fila, 8).toString());
-        registroPanel.txtSocDat.setText(tablaPanel.modelo.getValueAt(fila, 9).toString());
-        registroPanel.txtSocFecha.setText(tablaPanel.modelo.getValueAt(fila, 10).toString());
+
+        int idEmp = (int) tablaPanel.modelo.getValueAt(fila, 8);
+        int idDat = (int) tablaPanel.modelo.getValueAt(fila, 9);
+
+        registroPanel.comboSocEmp.setSelectedItem(mapCoo.get(idEmp));
+        registroPanel.comboSocDat.setSelectedItem(mapDat.get(idDat));
+
+        try {
+            registroPanel.dateSocFecha.setDate(java.sql.Date.valueOf(tablaPanel.modelo.getValueAt(fila, 10).toString()));
+        } catch (Exception e) {
+            registroPanel.dateSocFecha.setDate(null);
+        }
 
         flagAct = 1;
         modoOperacion = "modificar";
@@ -131,9 +193,19 @@ public class SocioController {
             ps.setString(5, registroPanel.txtSocDep.getText().trim());
             ps.setString(6, registroPanel.txtSocPro.getText().trim());
             ps.setString(7, registroPanel.txtSocDis.getText().trim());
-            ps.setInt(8, Integer.parseInt(registroPanel.txtSocEmp.getText().trim()));
-            ps.setInt(9, Integer.parseInt(registroPanel.txtSocDat.getText().trim()));
-            ps.setInt(10, Integer.parseInt(registroPanel.txtSocFecha.getText().trim()));
+
+            int codEmp = obtenerClavePorValor(mapCoo, (String) registroPanel.comboSocEmp.getSelectedItem());
+            int codDat = obtenerClavePorValor(mapDat, (String) registroPanel.comboSocDat.getSelectedItem());
+
+            ps.setInt(8, codEmp);
+            ps.setInt(9, codDat);
+
+            java.util.Date fecha = registroPanel.dateSocFecha.getDate();
+            if (fecha == null) {
+                JOptionPane.showMessageDialog(null, "Seleccione una fecha.");
+                return;
+            }
+            ps.setDate(10, new java.sql.Date(fecha.getTime()));
             ps.setInt(11, Integer.parseInt(registroPanel.txtSocCod.getText().trim()));
 
             ps.executeUpdate();
@@ -184,9 +256,9 @@ public class SocioController {
         registroPanel.txtSocDep.setText("");
         registroPanel.txtSocPro.setText("");
         registroPanel.txtSocDis.setText("");
-        registroPanel.txtSocEmp.setText("");
-        registroPanel.txtSocDat.setText("");
-        registroPanel.txtSocFecha.setText("");
+        registroPanel.comboSocEmp.setSelectedIndex(-1);
+        registroPanel.comboSocDat.setSelectedIndex(-1);
+        registroPanel.dateSocFecha.setDate(null);
     }
 
     private void inactivar() {
@@ -211,5 +283,14 @@ public class SocioController {
         if (confirm == JOptionPane.YES_OPTION) {
             System.exit(0);
         }
+    }
+
+    private int obtenerClavePorValor(Map<Integer, String> mapa, String valor) {
+        for (Map.Entry<Integer, String> entry : mapa.entrySet()) {
+            if (entry.getValue().equals(valor)) {
+                return entry.getKey();
+            }
+        }
+        return -1; // No encontrado
     }
 }

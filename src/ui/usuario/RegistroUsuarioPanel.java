@@ -4,10 +4,11 @@ import javax.swing.*;
 import java.awt.*;
 
 public class RegistroUsuarioPanel extends JPanel {
-    public JTextField txtUsuCod, txtUsuIde, txtUsuUsu, txtUsuEmp;
+    public JTextField txtUsuCod, txtUsuIde, txtUsuUsu;
     public JComboBox<String> comboUsuRol;
     public JCheckBox chkEstado;
     public JPasswordField txtUsuPas;
+    public JComboBox<String> comboUsuCoo;
 
     public RegistroUsuarioPanel() {
         setBorder(BorderFactory.createTitledBorder("Registro de Usuario"));
@@ -20,7 +21,7 @@ public class RegistroUsuarioPanel extends JPanel {
         txtUsuIde = new JTextField(10);
         txtUsuUsu = new JTextField(10);
         txtUsuPas = new JPasswordField(10);
-        txtUsuEmp = new JTextField(10);
+comboUsuCoo = new JComboBox<>();
         comboUsuRol = new JComboBox<>();
         chkEstado = new JCheckBox("Activo");
 
@@ -54,7 +55,7 @@ public class RegistroUsuarioPanel extends JPanel {
         gbc.gridx = 0; gbc.gridy = 5;
         add(new JLabel("UsuEmp:"), gbc);
         gbc.gridx = 1;
-        add(txtUsuEmp, gbc);
+        add(comboUsuCoo, gbc);
 
         gbc.gridx = 0; gbc.gridy = 6;
         add(new JLabel("Estado Registro:"), gbc);
@@ -67,7 +68,7 @@ public class RegistroUsuarioPanel extends JPanel {
         txtUsuUsu.setEditable(editable);
         txtUsuPas.setEditable(editable);
         comboUsuRol.setEnabled(editable);
-        txtUsuEmp.setEditable(editable);
+        comboUsuCoo.setEditable(editable);
         chkEstado.setEnabled(editable);
     }
 }
