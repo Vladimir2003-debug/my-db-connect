@@ -71,7 +71,7 @@ public class BotonesPanel extends JPanel {
         btnAdicionar.setEnabled(true);
         btnModificar.setEnabled(true);
         btnEliminar.setEnabled(true);
-        btnCancelar.setEnabled(false);
+        btnCancelar.setEnabled(true);
         btnInactivar.setEnabled(true);
         btnReactivar.setEnabled(true);
         btnActualizar.setEnabled(false);

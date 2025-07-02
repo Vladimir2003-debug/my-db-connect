@@ -6,7 +6,6 @@ import java.awt.*;
 
 public class RegistroRolPanel extends JPanel {
     public JTextField txtRolCod, txtRolRol, txtRolNom;
-    public JComboBox<String> comboRolUsu; // nuevo JComboBox
     public JCheckBox chkEstado;
 
     public RegistroRolPanel() {
@@ -19,7 +18,6 @@ public class RegistroRolPanel extends JPanel {
         txtRolCod = new JTextField(10);
         txtRolRol = new JTextField(10);
         txtRolNom = new JTextField(20);
-        comboRolUsu = new JComboBox<>(); // inicializa el combo
         chkEstado = new JCheckBox("Activo");
         txtRolCod.setEditable(false);
         
@@ -42,12 +40,6 @@ public class RegistroRolPanel extends JPanel {
         add(txtRolNom, gbc);
 
         gbc.gridx = 0;
-        gbc.gridy = 3;
-        add(new JLabel("RolUsu:"), gbc);
-        gbc.gridx = 1;
-        add(comboRolUsu, gbc); // añade el combo al formulario
-
-        gbc.gridx = 0;
         gbc.gridy = 4;
         add(new JLabel("Estado Registro:"), gbc);
         gbc.gridx = 1;
@@ -58,7 +50,6 @@ public class RegistroRolPanel extends JPanel {
         // txtRolCod sigue siendo ineditable siempre
         txtRolRol.setEditable(editable);
         txtRolNom.setEditable(editable);
-        comboRolUsu.setEnabled(editable);
         chkEstado.setEnabled(editable);
     }
 }

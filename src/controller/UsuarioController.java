@@ -5,6 +5,9 @@ import ui.BotonesPanel;
 import ui.usuario.RegistroUsuarioPanel;
 import ui.usuario.TablaUsuarioPanel;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
@@ -81,14 +84,30 @@ public class UsuarioController {
         botonesPanel.btnEliminar.addActionListener(e -> eliminarUsuario());
         botonesPanel.btnCancelar.addActionListener(e -> cancelarOperacion());
         botonesPanel.btnSalir.addActionListener(e -> salirDelPrograma());
+        botonesPanel.btnInactivar.addActionListener(e -> inactivarUsuario());
+        botonesPanel.btnReactivar.addActionListener(e -> reactivarUsuario());
+    }
+
+    public static String hashSHA256(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = md.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void agregarUsuario() {
         String ide = registroPanel.txtUsuIde.getText().trim();
         String usu = registroPanel.txtUsuUsu.getText().trim();
         String pas = new String(registroPanel.txtUsuPas.getPassword());
+        String pasHash = hashSHA256(pas);
         String emp = registroPanel.txtUsuEmp.getText().trim();
-        String rol = (String) registroPanel.comboUsuRol.getSelectedItem();
 
         if (ide.isEmpty() || usu.isEmpty() || pas.isEmpty()) {
             JOptionPane.showMessageDialog(null, "Complete los campos obligatorios: Ide, Usuario y Contraseña.");
@@ -100,7 +119,7 @@ public class UsuarioController {
             PreparedStatement ps = conn.prepareStatement(sql);
             ps.setString(1, ide);
             ps.setString(2, usu);
-            ps.setString(3, pas);
+            ps.setString(3, pasHash);
 
             String rolNombre = (String) registroPanel.comboUsuRol.getSelectedItem();
             Integer rolCod = mapaRol.get(rolNombre);
@@ -142,6 +161,8 @@ public class UsuarioController {
 
         usuFlagAct = 1;
         modoOperacion = "modificar";
+        botonesPanel.activarModoAdicionar();
+
     }
 
     private void actualizarUsuario() {
@@ -180,6 +201,7 @@ public class UsuarioController {
             limpiarCampos();
             usuFlagAct = 0;
             modoOperacion = "";
+            botonesPanel.activarModoNormal();
 
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(null, "Error al actualizar usuario: " + e.getMessage());
@@ -214,6 +236,66 @@ public class UsuarioController {
                 JOptionPane.showMessageDialog(null, "Error al eliminar usuario: " + e.getMessage());
             }
         }
+    }
+
+    private void inactivarUsuario() {
+        int fila = tablaPanel.tabla.getSelectedRow();
+        if (fila == -1) {
+            JOptionPane.showMessageDialog(null, "Seleccione una fila para inactivar.");
+            return;
+        }
+
+        registroPanel.txtUsuCod.setText(tablaPanel.modelo.getValueAt(fila, 0).toString());
+        registroPanel.txtUsuIde.setText(tablaPanel.modelo.getValueAt(fila, 1).toString());
+        registroPanel.txtUsuUsu.setText(tablaPanel.modelo.getValueAt(fila, 2).toString());
+        registroPanel.txtUsuPas.setText(tablaPanel.modelo.getValueAt(fila, 3).toString());
+        registroPanel.comboUsuRol.setSelectedItem(tablaPanel.modelo.getValueAt(fila, 4).toString());
+        registroPanel.chkEstado.setSelected(false); // marcar como inactivo
+
+        bloquearCamposRegistro();
+        usuFlagAct = 1;
+        modoOperacion = "inactivar";
+        botonesPanel.activarModoInactivar();
+    }
+
+    private void reactivarUsuario() {
+        int fila = tablaPanel.tabla.getSelectedRow();
+        if (fila == -1) {
+            JOptionPane.showMessageDialog(null, "Seleccione una fila para reactivar.");
+            return;
+        }
+
+        registroPanel.txtUsuCod.setText(tablaPanel.modelo.getValueAt(fila, 0).toString());
+        registroPanel.txtUsuIde.setText(tablaPanel.modelo.getValueAt(fila, 1).toString());
+        registroPanel.txtUsuUsu.setText(tablaPanel.modelo.getValueAt(fila, 2).toString());
+        registroPanel.txtUsuPas.setText(tablaPanel.modelo.getValueAt(fila, 3).toString());
+        registroPanel.comboUsuRol.setSelectedItem(tablaPanel.modelo.getValueAt(fila, 4).toString());
+        registroPanel.chkEstado.setSelected(true); // marcar como activo
+
+        desbloquearCamposRegistro();
+        usuFlagAct = 1;
+        modoOperacion = "reactivar";
+        botonesPanel.activarModoReactivar();
+    }
+
+    private void bloquearCamposRegistro() {
+        registroPanel.txtUsuCod.setEnabled(false);
+        registroPanel.txtUsuIde.setEnabled(false);
+        registroPanel.txtUsuUsu.setEnabled(false);
+        registroPanel.txtUsuPas.setEnabled(false);
+        registroPanel.comboUsuRol.setEnabled(false);
+        registroPanel.txtUsuEmp.setEnabled(false);
+        registroPanel.chkEstado.setEnabled(false);
+    }
+
+    private void desbloquearCamposRegistro() {
+        registroPanel.txtUsuCod.setEnabled(false); // Sigue deshabilitado
+        registroPanel.txtUsuIde.setEnabled(true);
+        registroPanel.txtUsuUsu.setEnabled(true);
+        registroPanel.txtUsuPas.setEnabled(true);
+        registroPanel.comboUsuRol.setEnabled(true);
+        registroPanel.txtUsuEmp.setEnabled(true);
+        registroPanel.chkEstado.setEnabled(true);
     }
 
     private void cancelarOperacion() {

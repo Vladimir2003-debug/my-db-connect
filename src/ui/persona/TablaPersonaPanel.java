@@ -1,18 +1,19 @@
-package ui.rol;
+package ui.persona;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 
-public class TablaRolPanel extends JPanel {
+public class TablaPersonaPanel extends JPanel {
     public JTable tabla;
     public DefaultTableModel modelo;
 
-    public TablaRolPanel() {
-        setBorder(BorderFactory.createTitledBorder("Tabla de Roles"));
+    public TablaPersonaPanel() {
+        setBorder(BorderFactory.createTitledBorder("Tabla de Personas"));
         setLayout(new BorderLayout());
 
-        String[] columnas = {"RolCod", "RolRol", "RolNom"};
+        String[] columnas = {"PerCod", "PerIden", "PerCor", "PerFot", "PerCoo", "PerDat", "PerFecha"};
+
         modelo = new DefaultTableModel(columnas, 0);
         tabla = new JTable(modelo);
         add(new JScrollPane(tabla), BorderLayout.CENTER);

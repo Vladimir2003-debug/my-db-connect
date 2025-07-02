@@ -22,8 +22,6 @@ public class RolController {
         this.botonesPanel = botones;
 
         cargarDatosDesdeBD();
-        cargarUsuariosEnCombo();
-
         botonesPanel.activarModoNormal(); // Al cancelar o actualizar
 
         initListeners();
@@ -32,7 +30,7 @@ public class RolController {
     private void cargarDatosDesdeBD() {
         tablaPanel.modelo.setRowCount(0); // limpia antes de cargar
         try (Connection conn = ConexionJDBC.getConexion()) {
-            String sql = "SELECT RolCod, RolRol, RolNom, RolUsu FROM rol";
+            String sql = "SELECT RolCod, RolRol, RolNom FROM rol";
             Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(sql);
 
@@ -40,8 +38,7 @@ public class RolController {
                 Object[] fila = {
                         rs.getInt("RolCod"),
                         rs.getString("RolRol"),
-                        rs.getString("RolNom"),
-                        rs.getString("RolUsu")
+                        rs.getString("RolNom")
                 };
                 tablaPanel.modelo.addRow(fila);
             }
@@ -63,25 +60,9 @@ public class RolController {
 
     }
 
-    private void cargarUsuariosEnCombo() {
-        registroPanel.comboRolUsu.removeAllItems(); // limpia el combo
-        try (Connection conn = ConexionJDBC.getConexion()) {
-            String sql = "SELECT UsuUsu FROM usuario";
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(sql);
-            while (rs.next()) {
-                registroPanel.comboRolUsu.addItem(rs.getString("UsuUsu"));
-            }
-            registroPanel.comboRolUsu.setSelectedIndex(-1); // ninguno seleccionado por defecto
-        } catch (SQLException e) {
-            JOptionPane.showMessageDialog(null, "Error al cargar usuarios: " + e.getMessage());
-        }
-    }
-
     private void agregarRol() {
         String rolRol = registroPanel.txtRolRol.getText().trim();
         String rolNom = registroPanel.txtRolNom.getText().trim();
-        String rolUsu = (String) registroPanel.comboRolUsu.getSelectedItem();
 
         // Solo validamos que el nombre del rol esté presente
         if (rolNom.isEmpty()) {
@@ -90,7 +71,8 @@ public class RolController {
         }
 
         try (Connection conn = ConexionJDBC.getConexion()) {
-            String sql = "INSERT INTO rol (RolRol, RolNom, RolUsu) VALUES (?, ?, ?)";
+            String sql = "INSERT INTO rol (RolRol, RolNom) VALUES (?, ?)";
+
             PreparedStatement ps = conn.prepareStatement(sql);
 
             // Si el campo está vacío, lo pasamos como NULL
@@ -101,12 +83,6 @@ public class RolController {
             }
 
             ps.setString(2, rolNom); // este es obligatorio
-
-            if (rolUsu == null || rolUsu.trim().isEmpty()) {
-                ps.setNull(3, java.sql.Types.VARCHAR);
-            } else {
-                ps.setString(3, rolUsu);
-            }
 
             ps.executeUpdate();
 
@@ -130,9 +106,6 @@ public class RolController {
         registroPanel.txtRolRol.setText(tablaPanel.modelo.getValueAt(fila, 1).toString());
         registroPanel.txtRolNom.setText(tablaPanel.modelo.getValueAt(fila, 2).toString());
 
-        String rolUsu = tablaPanel.modelo.getValueAt(fila, 3).toString();
-        registroPanel.comboRolUsu.setSelectedItem(rolUsu);
-
         // ⚠️ Activar mFodo de modificación
         rolFlagAct = 1;
         modoOperacion = "modificar";
@@ -146,16 +119,15 @@ public class RolController {
 
         int rolCod = Integer.parseInt(registroPanel.txtRolCod.getText());
         String nuevoEstado = registroPanel.chkEstado.isSelected() ? "A" : "I";
-        String sql = "UPDATE rol SET RolRol = ?, RolNom = ?, RolUsu = ?, estado = ? WHERE RolCod = ?";
+        String sql = "UPDATE rol SET RolRol = ?, RolNom = ?, estado = ? WHERE RolCod = ?";
 
         try (Connection conn = ConexionJDBC.getConexion();
                 PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, registroPanel.txtRolRol.getText());
             ps.setString(2, registroPanel.txtRolNom.getText());
-            ps.setString(3, (String) registroPanel.comboRolUsu.getSelectedItem());
-            ps.setString(4, nuevoEstado);
-            ps.setInt(5, rolCod);
+            ps.setString(3, nuevoEstado);
+            ps.setInt(4, rolCod);
             ps.executeUpdate();
 
             JOptionPane.showMessageDialog(null, "Registro actualizado correctamente.");
@@ -163,6 +135,7 @@ public class RolController {
             limpiarCampos();
             rolFlagAct = 0;
             modoOperacion = "";
+            botonesPanel.activarModoNormal();
 
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(null, "Error al actualizar: " + e.getMessage());
@@ -173,7 +146,6 @@ public class RolController {
         registroPanel.txtRolCod.setText("");
         registroPanel.txtRolRol.setText("");
         registroPanel.txtRolNom.setText("");
-        registroPanel.comboRolUsu.setSelectedIndex(-1);
     }
 
     private void eliminarRol() {
@@ -216,7 +188,6 @@ public class RolController {
         registroPanel.txtRolCod.setText(tablaPanel.modelo.getValueAt(fila, 0).toString());
         registroPanel.txtRolRol.setText(tablaPanel.modelo.getValueAt(fila, 1).toString());
         registroPanel.txtRolNom.setText(tablaPanel.modelo.getValueAt(fila, 2).toString());
-        registroPanel.comboRolUsu.setSelectedItem(tablaPanel.modelo.getValueAt(fila, 3).toString());
         registroPanel.chkEstado.setSelected(false); // ⚠️ mostrar como inactivo visualmente
         bloquearCamposRegistro();
 
@@ -235,7 +206,6 @@ public class RolController {
         registroPanel.txtRolCod.setText(tablaPanel.modelo.getValueAt(fila, 0).toString());
         registroPanel.txtRolRol.setText(tablaPanel.modelo.getValueAt(fila, 1).toString());
         registroPanel.txtRolNom.setText(tablaPanel.modelo.getValueAt(fila, 2).toString());
-        registroPanel.comboRolUsu.setSelectedItem(tablaPanel.modelo.getValueAt(fila, 3).toString());
         registroPanel.chkEstado.setSelected(true); // ⚠️ mostrar como activo visualmente
         desbloquearCamposRegistro();
         rolFlagAct = 1;
@@ -247,7 +217,6 @@ public class RolController {
         registroPanel.txtRolCod.setEnabled(false);
         registroPanel.txtRolRol.setEnabled(false);
         registroPanel.txtRolNom.setEnabled(false);
-        registroPanel.comboRolUsu.setEnabled(false);
         registroPanel.chkEstado.setEnabled(false);
     }
 
@@ -255,7 +224,6 @@ public class RolController {
         registroPanel.txtRolCod.setEnabled(false); // sigue bloqueado
         registroPanel.txtRolRol.setEnabled(true);
         registroPanel.txtRolNom.setEnabled(true);
-        registroPanel.comboRolUsu.setEnabled(true);
         registroPanel.chkEstado.setEnabled(true);
     }
 
